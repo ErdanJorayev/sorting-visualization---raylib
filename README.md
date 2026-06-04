@@ -17,7 +17,7 @@ Currently, the visualizer supports:
 
 ## Requirements
 To build and run this project, you need:
-* **GCC** (or any C99-compatible compiler)
+* **GCC** (or any C23-compatible compiler)
 * **Raylib** library installed on your system
 * **CMake** (version 3.10 or higher)
 
