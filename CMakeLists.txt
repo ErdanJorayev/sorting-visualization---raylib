@@ -7,7 +7,7 @@ find_package(raylib REQUIRED)
 
 add_executable(MySort 
     main.c 
-    viz_func.c 
+    vis_func.c 
     sort_func.c
 )
 
