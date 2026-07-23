@@ -8,7 +8,7 @@ find_package(raylib REQUIRED)
 add_executable(MySort 
     main.c 
     vis_func.c 
-    sort_func.c
+    sorts.c
 )
 
 target_link_libraries(MySort PRIVATE raylib)

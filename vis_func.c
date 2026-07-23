@@ -1,6 +1,5 @@
 #include <stddef.h>
 #include "sortdata.h"
-#define N 3            
 
 static const int screenWidth = 800;
 static const int screenHeight = 450;
@@ -8,7 +7,7 @@ static const int screenHeight = 450;
 static bool UpdateButton(MyButton * button);
 static void DrawButton(const MyButton * buttons);
 static void DrawMenu(const MyButton * arr, size_t sz);
-static bool DrawSort(SortData * data, const SortType sortype, const MyButton * arr, size_t sz);
+static bool DrawSort(SortData * data, const SortType sortype, const char * sortname);
 
 // Visualization sort data
 void Visual(SortData * data)
@@ -16,18 +15,25 @@ void Visual(SortData * data)
     InitWindow(screenWidth, screenHeight, "Sorting Visualization"); // Initialize the application window
     SetTargetFPS(60);                                               // Set the refresh rate (60 frames per second)
 
-    // Configure the array of screen buttons for algorithm selection
-    MyButton buttons[N] =
+    // Создаем кнопки для алгоритмов сортировки
+    MyButton buttons[3] =
     {
         {{300, 90, 200, 60},  GRAY, "Bubble Sort"},
         {{300, 180, 200, 60}, GRAY, "Selection Sort"},
         {{300, 270, 200, 60}, GRAY, "Insertion Sort"}
     };
+    MyButton menu_button = {{500, 10, 70, 30}, WHITE, "MENU", false};     // Кнопка меню
+    MyButton stop_button = {{600, 10, 70, 30}, WHITE, "STOP", false};     // Кнопка стоп
+    MyButton resume_button = {{700, 10, 70, 30}, WHITE, "RESUME", false}; // Кнопка продолжение
 
-    SortType sorttypes[3] = {BUBBLE, SELECT, INSERT}; 
-    bool MENU = true;  // Menu flag
-    SortType activeSort = 0;
+    SortType sorttypes[3] = {BUBBLE, SELECT, INSERT}; // Массив состояний  
+    
+    bool MENU = true;                                 // Флаг для меню
+    bool STOP = false;                                // Флаг стопа
+    bool RESUME = false;                              // Флаг продолжение
 
+    SortType activeSort = BUBBLE;                     // Включенная сортировка
+    const char * srt_text = nullptr;                  // Название сортировки
 
     // Main render loop (runs 60 times per second)
     while (!WindowShouldClose())
@@ -35,17 +41,26 @@ void Visual(SortData * data)
         // Logic (State Update) ____________________________________________________________________________
         if (MENU)                                     // Handle button clicks in the main menu
         {
-            for (size_t i = 0; i < N; i++)
+            for (size_t i = 0; i < 3; i++)
                 if (UpdateButton(&buttons[i]))
                 {
-                    activeSort = sorttypes[i];                      // Switch state to the selected sorting mode
-                    MENU = false;                                   // Off menu 
-                    break;                                          // Skip checking other buttons in this frame
+                    activeSort = sorttypes[i];     // Выбор сортировки
+                    srt_text = buttons[i].text;    // Выбор текста сортировки
+                    RestoreData(data);             // Сбрасываем массив под новый старт                   
+                    MENU = false;                  // Off menu 
+                    STOP = false;                  // Сброс кнопки стоп
+                    break;                         // Skip checking other buttons in this frame
                 }
         }
-        else                                                        // Algorithm visualization mode
+        else                                                       
         {
-                // Execute exactly ONE step of the sorting algorithm per frame
+            if (UpdateButton(&menu_button))
+                MENU = true;
+            if (UpdateButton(&stop_button))
+                STOP = true;
+            if (UpdateButton(&resume_button))
+                STOP = false;
+            if(!data->finished && !STOP) 
                 switch (activeSort)
                 {
                     case BUBBLE: BubbleSortStep(data);    break;
@@ -60,13 +75,20 @@ void Visual(SortData * data)
 
         if (MENU)
             DrawMenu(buttons, 3);                          
-        else 
-            MENU = DrawSort(data, activeSort, buttons, 3);    
+        else
+        {
+            DrawSort(data, activeSort, srt_text);    
+            DrawButton(&menu_button);
+            DrawButton(&stop_button);
+            if (STOP)     // Если нажата кнопка стоп, выводим кнопку продолжение
+                DrawButton(&resume_button);
+        } 
 
         EndDrawing();                                               // Finalize drawing and output the finished frame to the monitor
     } 
 }
 
+// Рисуем кнопку
 static void DrawButton(const MyButton * buttons)
 {
     DrawRectangleRec(buttons->rect, buttons->color);                      // Render the main background rectangle of the button
@@ -79,15 +101,16 @@ static void DrawButton(const MyButton * buttons)
     DrawText(buttons->text, posX, posY, 20, BLACK);                        // Render the text label in the center of the button
 }
 
+// Рисуем меню
 static void DrawMenu(const MyButton * arr, size_t sz)
 {
     ClearBackground(RAYWHITE);
-    for (size_t i = 0; i < N; i++)
+    for (size_t i = 0; i < sz; i++)
         DrawButton(&arr[i]);
 }
 
-// Render the sorting visualization screen
-static bool DrawSort(SortData * data, const SortType sortype, const MyButton * arr, size_t sz)
+// Рисуем сортировку
+static bool DrawSort(SortData * data, const SortType sortype, const char * sortname)
 {
     ClearBackground(BLACK);                                                      // Clear the screen with a solid black color
     float barWidth = (float)screenWidth / data->size;                            // Calculate the width of a single element bar
@@ -105,24 +128,14 @@ static bool DrawSort(SortData * data, const SortType sortype, const MyButton * a
         );
     }
 
-    MyButton menu_button = {{500, 10, 70, 30}, WHITE, "MENU", false};
-    DrawButton(&menu_button);
-    if (UpdateButton(&menu_button))
-    {
-        RestoreData(data);
-        DrawMenu(arr, sz);
-        return true;
-    }
-    
-    const char * sortyps[3] = {"Bubble Sort", "Selection Sort", "Insertion Sort"};
     if (!data->finished)
-        DrawText(sortyps[sortype], 10, 20, 20, GREEN); 
+        DrawText(sortname, 10, 20, 20, GREEN); 
     else
         DrawText("DONE!", 10, 20, 20, GREEN);     
     return false;                               
 }
 
-// Handle mouse interaction logic for a button
+// Логика кнопки
 static bool UpdateButton(MyButton * button)
 {
     const Vector2 mousePoint = GetMousePosition();                              // Get current screen coordinates of the mouse
@@ -144,7 +157,7 @@ static bool UpdateButton(MyButton * button)
     return button->clicked;                                                     // Return the current frame state of the button click
 }
 
-// Resotre all data 
+// Обнуляем все данные 
 void RestoreData(SortData * data)
 {
     data->size = 100;
